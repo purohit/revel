@@ -51,6 +51,18 @@ func ParseParams(req *Request) *Params {
 			}
 			files = req.MultipartForm.File
 		}
+
+	case "application/json", "text/json":
+		// Unmarshals incoming JSON data, one-level deep
+		if err := ParseJSON(req); err != nil {
+			WARN.Println("Error parsing request body:", err)
+		} else {
+			for key, vals := range req.Form {
+				for _, val := range vals {
+					values.Add(key, val)
+				}
+			}
+		}
 	}
 
 	return &Params{Values: values, Files: files}

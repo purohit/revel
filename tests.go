@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 )
 
@@ -53,7 +54,7 @@ func (t *TestSuite) Post(path string, contentType string, reader io.Reader) {
 }
 
 // Issue a POST request to the given path as a form post of the given key and
-// values, and store the result in Request and RequestBody.  
+// values, and store the result in Request and RequestBody.
 func (t *TestSuite) PostForm(path string, data url.Values) {
 	t.Post(path, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }

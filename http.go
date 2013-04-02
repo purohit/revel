@@ -2,8 +2,13 @@ package revel
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -96,10 +101,10 @@ func (al AcceptLanguages) String() string {
 
 // Resolve the Accept-Language header value.
 //
-// The results are sorted using the quality defined in the header for each language range with the 
+// The results are sorted using the quality defined in the header for each language range with the
 // most qualified language range as the first element in the slice.
 //
-// See the HTTP header fields specification 
+// See the HTTP header fields specification
 // (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.4) for more details.
 func ResolveAcceptLanguage(req *http.Request) AcceptLanguages {
 	header := req.Header.Get("Accept-Language")
@@ -126,4 +131,35 @@ func ResolveAcceptLanguage(req *http.Request) AcceptLanguages {
 
 	sort.Sort(acceptLanguages)
 	return acceptLanguages
+}
+
+// Unmarshals JSON data. This function should only be called
+// if you've already verified the ContentType is for JSON.
+func ParseJSON(req *Request) (err error) {
+	// 10 MB, like the FormData limit from
+	// golang.org/src/pkg/net/http/request.go#L623
+	maxJSONData := int64(10 << 20)
+	reader := io.LimitReader(req.Body, maxJSONData+1)
+	b, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return
+	}
+	if int64(len(b)) > maxJSONData {
+		return errors.New("JSON request too large")
+	}
+	// Unmarshal to one level: key -> string, let the developer handle unmarshaling
+	// after that. Otherwise, Go tries to reflect subvalues.
+	var jsonMap map[string]*json.RawMessage
+	err = json.Unmarshal(b, &jsonMap)
+	if err != nil {
+		return
+	}
+	// Copy values into req.Form
+	if req.Form == nil {
+		req.Form = make(url.Values)
+	}
+	for k, v := range jsonMap {
+		req.Form.Add(k, string(*v))
+	}
+	return nil
 }

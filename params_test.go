@@ -52,6 +52,8 @@ Content-Type: image/x-icon
 zzz
 --A--
 `
+	JSON_DATA = `{"flat": 1, "hash": {"two": "2", "three": 3},
+    "array": [{"four": "4", "five": "5"}, 6]}`
 )
 
 // The values represented by the form data.
@@ -70,6 +72,12 @@ var (
 		"file2[]":  {fh{"test.txt", []byte("content2")}, fh{"favicon.ico", []byte("xyz")}},
 		"file3[0]": {fh{"test.txt", []byte("content3")}},
 		"file3[1]": {fh{"favicon.ico", []byte("zzz")}},
+	}
+	expectedJSONValues = map[string][]string{
+		"flat":  {"1"},
+		"hash":  {`{"two": "2", "three": 3}`},
+		"array": {`[{"four": "4", "five": "5"}, 6]`},
+		"plus":  {"this"},
 	}
 )
 
@@ -102,6 +110,22 @@ func TestMultipartForm(t *testing.T) {
 
 	if !reflect.DeepEqual(expectedFiles, actualFiles) {
 		t.Errorf("Param files: (expected) %v != %v (actual)", expectedFiles, actualFiles)
+	}
+}
+
+func getJSONRequest() *http.Request {
+	req, _ := http.NewRequest("POST", "http://localhost/path?plus=this",
+		bytes.NewBufferString(JSON_DATA))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(JSON_DATA)))
+	return req
+}
+
+func TestJSONRequest(t *testing.T) {
+	params := ParseParams(NewRequest(getJSONRequest()))
+	if !reflect.DeepEqual(expectedJSONValues, map[string][]string(params.Values)) {
+		t.Errorf("Param values: (expected) %v != %v (actual)",
+			expectedJSONValues, map[string][]string(params.Values))
 	}
 }
 
